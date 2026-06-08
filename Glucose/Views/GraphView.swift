@@ -57,6 +57,43 @@ struct GraphView: View {
         }
     }
 
+    // Lightweight overlay for the hover rule + highlighted dot. Re-rendering
+    // this on every cursor move is cheap because it only draws two shapes and
+    // never touches the chart's data marks.
+    @ViewBuilder
+    private func hoverOverlay(proxy: ChartProxy) -> some View {
+        GeometryReader { geo in
+            if let plotAnchor = proxy.plotFrame {
+                let plot = geo[plotAnchor]
+                // Drive the dot from `hoverDate` directly — it updates in the
+                // same frame as the cursor, whereas `hovered` lags one frame
+                // (it's set via onChange), which made the dot flash at the
+                // latest reading before snapping to the cursor.
+                let active = hoverDate.flatMap(nearestReading(to:))
+                // Highlighted reading: hovered, or fall back to latest.
+                if let focus = active ?? readings.last,
+                   let x = proxy.position(forX: focus.date),
+                   let y = proxy.position(forY: focus.mmol) {
+                    // Vertical rule only while actively hovering.
+                    if active != nil {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.85))
+                            .frame(width: 1, height: plot.height)
+                            .position(x: plot.minX + x, y: plot.midY)
+                    }
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 10, height: 10)
+                        .position(x: plot.minX + x, y: plot.minY + y)
+                }
+            }
+        }
+        // The overlay must never intercept pointer events, or it steals them
+        // from chartXSelection — making the selection flicker to nil and the
+        // dot bounce back to the latest reading.
+        .allowsHitTesting(false)
+    }
+
     var body: some View {
         Chart {
             // Hypo band (low, dark red) — only when a reading falls below.
@@ -104,22 +141,14 @@ struct GraphView: View {
                 }
             }
 
-            // Highlighted reading (hovered, or fall back to latest).
-            if let focus = hovered ?? readings.last {
-                PointMark(
-                    x: .value("time", focus.date),
-                    y: .value("mmol", focus.mmol)
-                )
-                .symbolSize(80)
-                .foregroundStyle(Color.white)
-            }
-
-            // Vertical rule only while hovering.
-            if let hovered {
-                RuleMark(x: .value("hover", hovered.date))
-                    .lineStyle(StrokeStyle(lineWidth: 1))
-                    .foregroundStyle(Color.white.opacity(0.85))
-            }
+            // NOTE: the hover rule + highlighted dot are intentionally NOT in
+            // this builder. Drawing them here would make the whole chart
+            // (including the expensive catmullRom line) depend on `hovered`,
+            // forcing a full re-spline/re-layout on every cursor move. They
+            // live in `.chartOverlay` below so hover stays cheap.
+        }
+        .chartOverlay { proxy in
+            hoverOverlay(proxy: proxy)
         }
         .chartXSelection(value: $hoverDate)
         .onChange(of: hoverDate) { _, newValue in
