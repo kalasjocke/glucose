@@ -26,7 +26,6 @@ struct PopoverView: View {
         }
         .padding(12)
         .frame(width: 360, height: 300)
-        .preferredColorScheme(.dark)
         .onChange(of: range) { _, _ in hover.reading = nil }
     }
 
@@ -61,11 +60,11 @@ struct PopoverView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(diffLabel(for: display) ?? "—")
                     .font(.callout.italic())
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.secondary)
                 Spacer(minLength: 4)
                 Text(timeLabel(for: display?.date))
                     .font(.callout.italic())
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 2)
@@ -106,13 +105,13 @@ struct PopoverView: View {
         VStack(spacing: 10) {
             Image(systemName: "drop.degreesign")
                 .font(.system(size: 32))
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(.tertiary)
             Text("Sign in to Dexcom Share")
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
             Text("Right-click the menu bar value and choose Settings to enter credentials.")
                 .font(.callout)
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
             Button("Open Settings…") {

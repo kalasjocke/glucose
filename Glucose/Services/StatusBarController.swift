@@ -255,9 +255,24 @@ final class PopoverPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         animationBehavior = .utilityWindow
 
+        let host = NSHostingView(rootView: content)
+        if #available(macOS 26.0, *) {
+            // Liquid Glass, as used by the system menu-bar dropdowns (Wi-Fi,
+            // Control Center). It draws its own edge highlight, so no border.
+            let glass = NSGlassEffectView(frame: NSRect(origin: .zero, size: contentSize))
+            glass.cornerRadius = 16
+            glass.contentView = host
+            contentView = glass
+        } else {
+            contentView = Self.legacyBackground(size: contentSize, hosting: host)
+        }
+    }
+
+    /// Pre-Tahoe look: the frosted `.menu` material with a hairline border.
+    private static func legacyBackground(size: NSSize, hosting host: NSView) -> NSView {
         let cornerRadius: CGFloat = 12
 
-        let effect = NSVisualEffectView(frame: NSRect(origin: .zero, size: contentSize))
+        let effect = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
         effect.material = .menu
         effect.blendingMode = .behindWindow
         effect.state = .active
@@ -267,7 +282,6 @@ final class PopoverPanel: NSPanel {
         effect.layer?.masksToBounds = true
         effect.autoresizingMask = [.width, .height]
 
-        let host = NSHostingView(rootView: content)
         host.translatesAutoresizingMaskIntoConstraints = false
         effect.addSubview(host)
         NSLayoutConstraint.activate([
@@ -277,13 +291,12 @@ final class PopoverPanel: NSPanel {
             host.bottomAnchor.constraint(equalTo: effect.bottomAnchor)
         ])
 
-        contentView = effect
-
         // Subtle border that matches Control Center popovers.
         if let layer = effect.layer {
             layer.borderWidth = 0.5
             layer.borderColor = NSColor.white.withAlphaComponent(0.07).cgColor
         }
+        return effect
     }
 
     override var canBecomeKey: Bool { true }

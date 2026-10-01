@@ -122,11 +122,11 @@ struct GraphView: View {
         .chartYAxis {
             AxisMarks(position: .trailing, values: yAxisValues) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.tertiary)
                 AxisValueLabel(horizontalSpacing: 6) {
                     if let d = value.as(Double.self) {
                         Text(String(format: "%.1f", d))
-                            .foregroundStyle(.white.opacity(0.75))
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                     }
                 }
@@ -135,18 +135,15 @@ struct GraphView: View {
         .chartXAxis {
             AxisMarks(values: .stride(by: .hour, count: range.xAxisStrideHours)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
-                    .foregroundStyle(.white.opacity(0.18))
+                    .foregroundStyle(.quaternary)
                 AxisValueLabel(anchor: .top, collisionResolution: .disabled) {
                     if let date = value.as(Date.self) {
                         Text(date, format: .dateTime.hour(.defaultDigits(amPM: .abbreviated)))
-                            .foregroundStyle(.white.opacity(0.75))
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                     }
                 }
             }
-        }
-        .chartPlotStyle { plot in
-            plot.background(Color.black.opacity(0.35))
         }
     }
 }
@@ -205,12 +202,12 @@ private struct HoverIndicator: View {
             // Vertical rule only while actively hovering.
             if active != nil {
                 Rectangle()
-                    .fill(Color.white.opacity(0.85))
+                    .fill(Color.primary.opacity(0.85))
                     .frame(width: 1, height: plot.height)
                     .position(x: plot.minX + x, y: plot.midY)
             }
             Circle()
-                .fill(Color.white)
+                .fill(Color.primary)
                 .frame(width: 10, height: 10)
                 .position(x: plot.minX + x, y: plot.minY + y)
         }
