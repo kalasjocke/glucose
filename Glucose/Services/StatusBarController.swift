@@ -178,7 +178,13 @@ final class StatusBarController: NSObject {
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]
         ) { [weak self] _ in
-            Task { @MainActor in self?.closePanel() }
+            Task { @MainActor in
+                // A click on our own status item can arrive here too. Leave it
+                // to the button's toggle, or this closes the panel on mouse-down
+                // and the toggle reopens it on mouse-up.
+                guard let self, !self.statusItemContains(NSEvent.mouseLocation) else { return }
+                self.closePanel()
+            }
         }
         keyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
             if event.keyCode == 53 { // escape
@@ -187,6 +193,11 @@ final class StatusBarController: NSObject {
             }
             return event
         }
+    }
+
+    private func statusItemContains(_ screenPoint: NSPoint) -> Bool {
+        guard let button = statusItem.button, let window = button.window else { return false }
+        return window.convertToScreen(button.convert(button.bounds, to: nil)).contains(screenPoint)
     }
 
     private func removeEventMonitors() {
