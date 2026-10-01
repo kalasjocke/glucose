@@ -1,12 +1,22 @@
 import SwiftUI
 import Charts
+import Observation
+
+/// Hover state kept in a reference box rather than in `@State` on `GraphView`.
+///
+/// SwiftUI attributes an `@Observable` read to whichever body actually reads
+/// it, so keeping the cursor position here means a mouse move invalidates only
+/// the small `HoverIndicator` below the plot — not `GraphView.body`, which
+/// would rebuild every mark and re-spline the catmullRom curve on each frame.
+@Observable
+final class ChartHoverState {
+    var reading: GlucoseReading?
+}
 
 struct GraphView: View {
     let readings: [GlucoseReading]
     let range: TimeRange
-    @Binding var hovered: GlucoseReading?
-
-    @State private var hoverDate: Date?
+    let hover: ChartHoverState
 
     private var domain: ClosedRange<Date> {
         let now = Date()
@@ -49,49 +59,6 @@ struct GraphView: View {
         case .h1, .h3: return true
         case .h6, .h12, .h24: return false
         }
-    }
-
-    private func nearestReading(to date: Date) -> GlucoseReading? {
-        readings.min { lhs, rhs in
-            abs(lhs.date.timeIntervalSince(date)) < abs(rhs.date.timeIntervalSince(date))
-        }
-    }
-
-    // Lightweight overlay for the hover rule + highlighted dot. Re-rendering
-    // this on every cursor move is cheap because it only draws two shapes and
-    // never touches the chart's data marks.
-    @ViewBuilder
-    private func hoverOverlay(proxy: ChartProxy) -> some View {
-        GeometryReader { geo in
-            if let plotAnchor = proxy.plotFrame {
-                let plot = geo[plotAnchor]
-                // Drive the dot from `hoverDate` directly — it updates in the
-                // same frame as the cursor, whereas `hovered` lags one frame
-                // (it's set via onChange), which made the dot flash at the
-                // latest reading before snapping to the cursor.
-                let active = hoverDate.flatMap(nearestReading(to:))
-                // Highlighted reading: hovered, or fall back to latest.
-                if let focus = active ?? readings.last,
-                   let x = proxy.position(forX: focus.date),
-                   let y = proxy.position(forY: focus.mmol) {
-                    // Vertical rule only while actively hovering.
-                    if active != nil {
-                        Rectangle()
-                            .fill(Color.white.opacity(0.85))
-                            .frame(width: 1, height: plot.height)
-                            .position(x: plot.minX + x, y: plot.midY)
-                    }
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 10, height: 10)
-                        .position(x: plot.minX + x, y: plot.minY + y)
-                }
-            }
-        }
-        // The overlay must never intercept pointer events, or it steals them
-        // from chartXSelection — making the selection flicker to nil and the
-        // dot bounce back to the latest reading.
-        .allowsHitTesting(false)
     }
 
     var body: some View {
@@ -142,17 +109,13 @@ struct GraphView: View {
             }
 
             // NOTE: the hover rule + highlighted dot are intentionally NOT in
-            // this builder. Drawing them here would make the whole chart
-            // (including the expensive catmullRom line) depend on `hovered`,
-            // forcing a full re-spline/re-layout on every cursor move. They
-            // live in `.chartOverlay` below so hover stays cheap.
+            // this builder, and neither is the cursor position they follow.
+            // Both live below the plot in `HoverIndicator` so that a cursor
+            // move never invalidates this body — re-running it would rebuild
+            // all ~288 marks and re-spline the catmullRom line every frame.
         }
         .chartOverlay { proxy in
-            hoverOverlay(proxy: proxy)
-        }
-        .chartXSelection(value: $hoverDate)
-        .onChange(of: hoverDate) { _, newValue in
-            hovered = newValue.flatMap(nearestReading(to:))
+            HoverIndicator(readings: readings, proxy: proxy, hover: hover)
         }
         .chartXScale(domain: domain)
         .chartYScale(domain: yDomain)
@@ -184,6 +147,86 @@ struct GraphView: View {
         }
         .chartPlotStyle { plot in
             plot.background(Color.black.opacity(0.35))
+        }
+    }
+}
+
+// The chart is expensive to rebuild, so let SwiftUI skip `body` whenever the
+// data is unchanged. `hover` is compared by identity only: the indicator keeps
+// itself up to date through observation, so a cursor move — which does re-run
+// `PopoverView.body` for the stats row — must not drag the chart along with it.
+extension GraphView: Equatable {
+    static func == (lhs: GraphView, rhs: GraphView) -> Bool {
+        lhs.range == rhs.range
+            && lhs.hover === rhs.hover
+            && lhs.readings == rhs.readings
+    }
+}
+
+/// The hover rule + highlighted dot, plus the hit testing that drives them.
+///
+/// This sits inside `.chartOverlay`, below the plot in the view tree, so that
+/// redrawing it costs two shapes and touches none of the chart's data marks.
+/// It also owns hit testing: `chartXSelection` would need its binding declared
+/// above the `Chart`, which is exactly what used to force a full rebuild.
+private struct HoverIndicator: View {
+    let readings: [GlucoseReading]
+    let proxy: ChartProxy
+    let hover: ChartHoverState
+
+    var body: some View {
+        GeometryReader { geo in
+            let plot = proxy.plotFrame.map { geo[$0] }
+            ZStack(alignment: .topLeading) {
+                Color.clear
+                if let plot {
+                    marks(in: plot)
+                }
+            }
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                guard let plot, case .active(let point) = phase, plot.contains(point) else {
+                    focus(on: nil)
+                    return
+                }
+                let date = proxy.value(atX: point.x - plot.minX, as: Date.self)
+                focus(on: date.flatMap(nearestReading(to:)))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func marks(in plot: CGRect) -> some View {
+        let active = hover.reading
+        // Highlighted reading: hovered, or fall back to latest.
+        if let target = active ?? readings.last,
+           let x = proxy.position(forX: target.date),
+           let y = proxy.position(forY: target.mmol) {
+            // Vertical rule only while actively hovering.
+            if active != nil {
+                Rectangle()
+                    .fill(Color.white.opacity(0.85))
+                    .frame(width: 1, height: plot.height)
+                    .position(x: plot.minX + x, y: plot.midY)
+            }
+            Circle()
+                .fill(Color.white)
+                .frame(width: 10, height: 10)
+                .position(x: plot.minX + x, y: plot.minY + y)
+        }
+    }
+
+    // Writing an unchanged value would still fire observation, redrawing the
+    // indicator for every pixel of travel within one reading's slot.
+    private func focus(on reading: GlucoseReading?) {
+        if hover.reading != reading {
+            hover.reading = reading
+        }
+    }
+
+    private func nearestReading(to date: Date) -> GlucoseReading? {
+        readings.min { lhs, rhs in
+            abs(lhs.date.timeIntervalSince(date)) < abs(rhs.date.timeIntervalSince(date))
         }
     }
 }

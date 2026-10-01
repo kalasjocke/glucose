@@ -4,10 +4,13 @@ import AppKit
 struct PopoverView: View {
     @Environment(GlucoseStore.self) private var store
     @State private var range: TimeRange = .h24
-    @State private var hovered: GlucoseReading?
+    // A reference box rather than a plain `@State` value: a cursor move must
+    // invalidate this view (the stats row follows the hover) without pushing a
+    // fresh, unequal `GraphView` down and forcing the chart to rebuild.
+    @State private var hover = ChartHoverState()
 
     private var filtered: [GlucoseReading] { store.readings(in: range) }
-    private var displayReading: GlucoseReading? { hovered ?? store.latestReading }
+    private var displayReading: GlucoseReading? { hover.reading ?? store.latestReading }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -16,14 +19,15 @@ struct PopoverView: View {
             } else {
                 rangePicker
                 statsRow
-                GraphView(readings: filtered, range: range, hovered: $hovered)
+                GraphView(readings: filtered, range: range, hover: hover)
+                    .equatable()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .padding(12)
         .frame(width: 360, height: 300)
         .preferredColorScheme(.dark)
-        .onChange(of: range) { _, _ in hovered = nil }
+        .onChange(of: range) { _, _ in hover.reading = nil }
     }
 
     private var rangePicker: some View {
@@ -40,7 +44,7 @@ struct PopoverView: View {
         let display = displayReading
         // Treat the *displayed* reading as stale only when we're showing the
         // latest one and the store is stale — hovered points are exact picks.
-        let stale = (hovered == nil) && store.isStale
+        let stale = (hover.reading == nil) && store.isStale
         let angle = display.flatMap { store.readings.trendAngleDegrees(endingAt: $0) }
         return ZStack {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
