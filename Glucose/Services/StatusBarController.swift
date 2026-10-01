@@ -150,9 +150,10 @@ final class StatusBarController: NSObject {
         let panelSize = panel.frame.size
         let gap: CGFloat = 6
 
-        // Center under the button, clamped to the screen.
+        // Left-align with the button like system menu-bar menus, clamped to the
+        // screen so it shifts left when the item sits near the right edge.
         var origin = NSPoint(
-            x: buttonFrameInScreen.midX - panelSize.width / 2,
+            x: buttonFrameInScreen.minX,
             y: buttonFrameInScreen.minY - panelSize.height - gap
         )
         if let screen = buttonWindow.screen ?? NSScreen.main {
