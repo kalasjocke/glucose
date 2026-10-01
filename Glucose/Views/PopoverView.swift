@@ -63,12 +63,22 @@ struct PopoverView: View {
                     .font(.callout.italic())
                     .foregroundStyle(.white.opacity(0.6))
                 Spacer(minLength: 4)
-                Text(display?.date.timeAgoCompact ?? "—")
+                Text(timeLabel(for: display?.date))
                     .font(.callout.italic())
                     .foregroundStyle(.white.opacity(0.6))
             }
         }
         .padding(.horizontal, 2)
+    }
+
+    // Relative ("2m", "45m") for recent readings, absolute HH:mm once a
+    // reading is more than an hour old — vague "2h" labels aren't useful then.
+    private func timeLabel(for date: Date?) -> String {
+        guard let date else { return "—" }
+        if Date().timeIntervalSince(date) > 3600 {
+            return date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
+        }
+        return date.timeAgoCompact
     }
 
     private func diffLabel(for reading: GlucoseReading?) -> String? {
