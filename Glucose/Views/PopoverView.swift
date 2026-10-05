@@ -8,6 +8,7 @@ struct PopoverView: View {
     // invalidate this view (the stats row follows the hover) without pushing a
     // fresh, unequal `GraphView` down and forcing the chart to rebuild.
     @State private var hover = ChartHoverState()
+    @Namespace private var rangeSelection
 
     private var filtered: [GlucoseReading] { store.readings(in: range) }
     private var displayReading: GlucoseReading? { hover.reading ?? store.latestReading }
@@ -29,14 +30,44 @@ struct PopoverView: View {
         .onChange(of: range) { _, _ in hover.reading = nil }
     }
 
+    // Styled after the Stocks app's range picker: plain labels spread across
+    // the width, with a soft capsule behind the selected one. Quieter on the
+    // glass than a bordered segmented control.
     private var rangePicker: some View {
-        Picker("Time range", selection: $range) {
+        HStack(spacing: 0) {
             ForEach(TimeRange.allCases) { r in
-                Text(r.label).tag(r)
+                if r != TimeRange.allCases.first {
+                    Spacer(minLength: 0)
+                }
+                rangeButton(r)
             }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
+        .animation(.snappy(duration: 0.25), value: range)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Time range")
+    }
+
+    private func rangeButton(_ r: TimeRange) -> some View {
+        let selected = r == range
+        return Button {
+            range = r
+        } label: {
+            Text(r.label)
+                .font(.subheadline.weight(selected ? .bold : .semibold))
+                .foregroundStyle(selected ? Color.primary : Color.primary.opacity(0.8))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background {
+                    if selected {
+                        Capsule()
+                            .fill(.quaternary)
+                            .matchedGeometryEffect(id: "selection", in: rangeSelection)
+                    }
+                }
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var statsRow: some View {

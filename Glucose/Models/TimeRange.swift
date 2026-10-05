@@ -17,11 +17,11 @@ enum TimeRange: String, CaseIterable, Identifiable, Codable, Sendable {
 
     var label: String {
         switch self {
-        case .h1: return "1hr"
-        case .h3: return "3hr"
-        case .h6: return "6hr"
-        case .h12: return "12hr"
-        case .h24: return "24hr"
+        case .h1: return "1H"
+        case .h3: return "3H"
+        case .h6: return "6H"
+        case .h12: return "12H"
+        case .h24: return "24H"
         }
     }
 
