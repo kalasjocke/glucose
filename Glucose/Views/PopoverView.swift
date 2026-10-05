@@ -14,7 +14,7 @@ struct PopoverView: View {
     private var displayReading: GlucoseReading? { hover.reading ?? store.latestReading }
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 6) {
             if !store.hasCredentials {
                 emptyState
             } else {
@@ -25,8 +25,8 @@ struct PopoverView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding(12)
-        .frame(width: 360, height: 300)
+        .padding(10)
+        .frame(width: 360, height: 280)
         .onChange(of: range) { _, _ in hover.reading = nil }
     }
 
@@ -55,8 +55,8 @@ struct PopoverView: View {
             Text(r.label)
                 .font(.subheadline.weight(selected ? .bold : .semibold))
                 .foregroundStyle(selected ? Color.primary : Color.primary.opacity(0.8))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
                 .background {
                     if selected {
                         Capsule()

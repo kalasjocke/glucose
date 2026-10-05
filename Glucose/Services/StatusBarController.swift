@@ -14,7 +14,7 @@ final class StatusBarController: NSObject {
         self.store = store
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.panel = PopoverPanel(
-            contentSize: NSSize(width: 360, height: 300),
+            contentSize: NSSize(width: 360, height: 280),
             content: AnyView(PopoverView().environment(store))
         )
         super.init()
