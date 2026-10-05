@@ -61,6 +61,11 @@ struct GraphView: View {
         }
     }
 
+    // Solid hairlines in the system separator colour, matching the dividers in
+    // the native menu-bar dropdowns.
+    private static let gridStroke = StrokeStyle(lineWidth: 1)
+    private static let gridColor = Color(nsColor: .separatorColor)
+
     var body: some View {
         Chart {
             // Hypo band (low, dark red) — only when a reading falls below.
@@ -121,8 +126,8 @@ struct GraphView: View {
         .chartYScale(domain: yDomain)
         .chartYAxis {
             AxisMarks(position: .trailing, values: yAxisValues) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
-                    .foregroundStyle(.tertiary)
+                AxisGridLine(stroke: Self.gridStroke)
+                    .foregroundStyle(Self.gridColor)
                 AxisValueLabel(horizontalSpacing: 6) {
                     if let d = value.as(Double.self) {
                         Text(String(format: "%.1f", d))
@@ -134,8 +139,8 @@ struct GraphView: View {
         }
         .chartXAxis {
             AxisMarks(values: .stride(by: .hour, count: range.xAxisStrideHours)) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
-                    .foregroundStyle(.quaternary)
+                AxisGridLine(stroke: Self.gridStroke)
+                    .foregroundStyle(Self.gridColor)
                 AxisValueLabel(anchor: .top, collisionResolution: .disabled) {
                     if let date = value.as(Date.self) {
                         Text(date, format: .dateTime.hour(.defaultDigits(amPM: .abbreviated)))
