@@ -165,6 +165,10 @@ final class StatusBarController: NSObject {
         panel.setFrameOrigin(origin)
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
+        // Recompute the shadow from the rendered, rounded content; otherwise it
+        // can be cached from the square window before the first draw.
+        panel.display()
+        panel.invalidateShadow()
 
         installEventMonitors()
     }
@@ -271,10 +275,22 @@ final class PopoverPanel: NSPanel {
         if #available(macOS 26.0, *) {
             // Liquid Glass, as used by the system menu-bar dropdowns (Wi-Fi,
             // Control Center). It draws its own edge highlight, so no border.
+            let cornerRadius: CGFloat = 16
             let glass = NSGlassEffectView(frame: NSRect(origin: .zero, size: contentSize))
-            glass.cornerRadius = 16
+            glass.cornerRadius = cornerRadius
             glass.contentView = host
-            contentView = glass
+            glass.autoresizingMask = [.width, .height]
+
+            // The window shadow follows the content's alpha, and the glass
+            // alone leaves the square window opaque at its corners, which shows
+            // as a dark square outline. Clip to the same rounded shape.
+            let container = NSView(frame: glass.frame)
+            container.wantsLayer = true
+            container.layer?.cornerRadius = cornerRadius
+            container.layer?.cornerCurve = .continuous
+            container.layer?.masksToBounds = true
+            container.addSubview(glass)
+            contentView = container
         } else {
             contentView = Self.legacyBackground(size: contentSize, hosting: host)
         }
