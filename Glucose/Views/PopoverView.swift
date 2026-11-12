@@ -8,7 +8,6 @@ struct PopoverView: View {
     // invalidate this view (the stats row follows the hover) without pushing a
     // fresh, unequal `GraphView` down and forcing the chart to rebuild.
     @State private var hover = ChartHoverState()
-    @Namespace private var rangeSelection
 
     private var filtered: [GlucoseReading] { store.readings(in: range) }
     private var displayReading: GlucoseReading? { hover.reading ?? store.latestReading }
@@ -42,7 +41,6 @@ struct PopoverView: View {
                 rangeButton(r)
             }
         }
-        .animation(.snappy(duration: 0.25), value: range)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Time range")
     }
@@ -55,13 +53,12 @@ struct PopoverView: View {
             Text(r.label)
                 .font(.subheadline.weight(selected ? .bold : .semibold))
                 .foregroundStyle(selected ? Color.primary : Color.primary.opacity(0.8))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
                 .background {
                     if selected {
                         Capsule()
                             .fill(.quaternary)
-                            .matchedGeometryEffect(id: "selection", in: rangeSelection)
                     }
                 }
                 .contentShape(Capsule())
